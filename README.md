@@ -1,7 +1,7 @@
 # Téléinfo Linky avec un Raspberry Pi
 Surveiller sa consommation électrique en temps réel avec un compteur Linky et un Raspberry 
 
-![Monitorer son compteur Linky avec Grafana](https://sebastienreuiller.fr/blog/wp-content/uploads/2019/01/capture_dashboard_teleinfo.png)
+![Monitorer son compteur Linky avec Grafana](https://sebastienreuiller.fr/blog/wp-content/uploads/2019/06/capture_teleinfo_avec_tarif.png)
 
 
 
