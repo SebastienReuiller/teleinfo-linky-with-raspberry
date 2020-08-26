@@ -7,6 +7,7 @@
 #
 # Exemple de trame:
 # {
+#  'BASE': '12345678'        # index heure normale en Wh
 #  'OPTARIF': 'HC..',        # option tarifaire
 #  'IMAX': '007',            # intensité max
 #  'HCHC': '040177099',      # index heure creuse en Wh
@@ -29,7 +30,7 @@ from datetime import datetime
 from influxdb import InfluxDBClient
 
 # clés téléinfo
-int_measure_keys = ['IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
+int_measure_keys = ['BASE','IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
 
 # création du logguer
 logging.basicConfig(filename='/var/log/teleinfo/releve.log', level=logging.INFO, format='%(asctime)s %(message)s')
