@@ -73,6 +73,16 @@ def add_measures(measures, time_measure):
 
     client.write_points(points)
 
+def calc_checksum(group):
+    # Calcul le caractere de controle d'une ligne de trame linky
+    # seule l'etiquette et la donnée de chaque ligne doivent etre envoyés en parametre group
+    data_unicode = 0
+    for data in group:
+            data_unicode += ord(data)
+    sum_unicode = (data_unicode & 63) + 32
+    sum = chr(sum_unicode)
+    return sum
+
 
 def main():
     with serial.Serial(port='/dev/ttyS0', baudrate=1200, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
