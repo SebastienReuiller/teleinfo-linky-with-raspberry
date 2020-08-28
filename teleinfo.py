@@ -7,11 +7,12 @@
 #
 # Exemple de trame:
 # {
-#  'OPTARIF': 'HC..',        # option tarifaire
-#  'IMAX': '007',            # intensité max
-#  'HCHC': '040177099',      # index heure creuse en Wh
+#  'BASE': '123456789'       # Index heure de base en Wh
+#  'OPTARIF': 'HC..',        # Option tarifaire HC/BASE
+#  'IMAX': '007',            # Intensité max
+#  'HCHC': '040177099',      # Index heure creuse en Wh
 #  'IINST': '005',           # Intensité instantanée en A
-#  'PAPP': '01289',          # puissance Apparente, en VA
+#  'PAPP': '01289',          # Puissance Apparente, en VA
 #  'MOTDETAT': '000000',     # Mot d'état du compteur
 #  'HHPHC': 'A',             # Horaire Heures Pleines Heures Creuses
 #  'ISOUSC': '45',           # Intensité souscrite en A
@@ -29,7 +30,8 @@ from datetime import datetime
 from influxdb import InfluxDBClient
 
 # clés téléinfo
-int_measure_keys = ['IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
+int_measure_keys = ['BASE','IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
+no_checksum = ['MOTDETAT']
 
 # création du logguer
 logging.basicConfig(filename='/var/log/teleinfo/releve.log', level=logging.INFO, format='%(asctime)s %(message)s')
@@ -61,6 +63,7 @@ def add_measures(measures, time_measure):
         point = {
                     "measurement": measure,
                     "tags": {
+                        # identification de la sonde et du compteur
                         "host": "raspberry",
                         "region": "linky"
                     },
@@ -102,6 +105,7 @@ def main():
 
         while True:
             line_str = line.decode("utf-8")
+            logging.debug(line_str)
             ar = line_str.split(" ")
             try:
                 key = ar[0]
@@ -109,15 +113,29 @@ def main():
                     value = int(ar[1])
                 else:
                     value = ar[1]
-
-                checksum = ar[2]
+                
+                # verification de la somme de controle
+                keyandvalue =  ar[0] + " " + ar[1]
+                checksum = str(ar[2]).rstrip() # suppression saut de ligne
+                checksum2 = calc_checksum(keyandvalue)  
+                if (checksum2 == checksum or (key in no_checksum)) :
+                    checksum_ok = True
+                else :
+                    logging.info("Erreur de checksum pour le champ %s" % key)
+                    logging.info("Checksum: %s" % checksum)
+                    logging.info("Calc_checksum: %s" % checksum2)
+                    logging.info("Valeur d'origine: %s" % ar)
+                    checksum_ok = False
+                
                 trame[key] = value
+                
                 if b'\x03' in line:  # si caractère de fin dans la ligne, on insère la trame dans influx
                     del trame['ADCO']  # adresse du compteur : confidentiel!
                     time_measure = time.time()
 
                     # insertion dans influxdb
-                    add_measures(trame, time_measure)
+                    if (checksum_ok) : 
+                        add_measures(trame, time_measure)
 
                     # ajout timestamp pour debugger
                     trame["timestamp"] = int(time_measure)
@@ -125,7 +143,8 @@ def main():
 
                     trame = dict()  # on repart sur une nouvelle trame
             except Exception as e:
-                logging.error("Exception : %s" % e)
+                logging.error("Exception : %s" % e, exc_info=True)
+                logging.error("%s %s" % (key,value))
             line = ser.readline()
 
 
