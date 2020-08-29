@@ -76,15 +76,17 @@ def add_measures(measures, time_measure):
 
     client.write_points(points)
 
-def calc_checksum(group):
-    # Calcul le caractere de controle d'une ligne de trame linky
-    # seule l'etiquette et la donnée de chaque ligne doivent etre envoyés en parametre group
+
+def verif_checksum(data,checksum):
     data_unicode = 0
-    for data in group:
-            data_unicode += ord(data)
+    for caractere in data:
+            data_unicode += ord(caractere)
     sum_unicode = (data_unicode & 63) + 32
     sum = chr(sum_unicode)
-    return sum
+    if (checksum == sum):
+        return True
+    else:
+        return False
 
 
 def main():
@@ -105,36 +107,29 @@ def main():
 
         while True:
             line_str = line.decode("utf-8")
-            logging.debug(line_str)
-            ar = line_str.split(" ")
+            logging.debug(line)
+            ar = line_str.split(" ") # separation sur espace /!\ attention le caractere de controle 0x32 est un espace aussi
+            # preparation données pour verification checksum
+            data =  ar[0] + " " + ar[1]
+            checksum = (line_str.replace('\x03\x02',''))[-3:-2]  # supprimer les retours charriot et saut de ligne puis selectionne le caractere de controle en partant de la fin
+            verif_checksum(data,checksum)
+
+
             try:
                 key = ar[0]
-                if key in int_measure_keys :
+                if key in int_measure_keys :  # typer les valeurs numériques en "integer"
                     value = int(ar[1])
                 else:
-                    value = ar[1]
-                
-                # verification de la somme de controle
-                keyandvalue =  ar[0] + " " + ar[1]
-                checksum = str(ar[2]).rstrip() # suppression saut de ligne
-                checksum2 = calc_checksum(keyandvalue)  
-                if (checksum2 == checksum or (key in no_checksum)) :
-                    checksum_ok = True
-                else :
-                    logging.info("Erreur de checksum pour le champ %s" % key)
-                    logging.info("Checksum: %s" % checksum)
-                    logging.info("Calc_checksum: %s" % checksum2)
-                    logging.info("Valeur d'origine: %s" % ar)
-                    checksum_ok = False
-                
-                trame[key] = value
+                    value = ar[1]   # typer les autres valeurs en "string"
+               
+                trame[key] = value   # creation du champ pour la trame en cours
                 
                 if b'\x03' in line:  # si caractère de fin dans la ligne, on insère la trame dans influx
                     del trame['ADCO']  # adresse du compteur : confidentiel!
                     time_measure = time.time()
 
                     # insertion dans influxdb
-                    if (checksum_ok) : 
+                    if (verif_checksum) : 
                         add_measures(trame, time_measure)
 
                     # ajout timestamp pour debugger
