@@ -1,0 +1,3 @@
+[teleinfo]
+serial_port=/dev/ttyS0
+influxdb_server=my.perso.loc

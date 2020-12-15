@@ -1,7 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # __author__ = "Sébastien Reuiller"
 # __licence__ = "Apache License 2.0"
+"""Send teleinfo to influxdb."""
 
 # Python 3, prerequis : pip install pySerial influxdb
 #
@@ -20,65 +21,92 @@
 #  'PTEC': 'HP..'            # Période tarifaire en cours
 # }
 
-
-import serial
+import os
+import sys
 import logging
 import time
-import requests
+import pathlib
 from datetime import datetime
+from configparser import ConfigParser
+import requests
+import serial
 from influxdb import InfluxDBClient
 
 # clés téléinfo
-int_measure_keys = ['IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
+INT_MEASURE_KEYS = ['IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
+
+LOGFOLDER = "/var/log/teleinfo/releve.log"
+TELEINFO_INI = "./teleinfo.ini"
+
+# Check if log folder exist
+if not pathlib.Path(LOGFOLDER).exists():
+    os.mkdir(LOGFOLDER)
+
+if not pathlib.Path(TELEINFO_INI).exists():
+    print("Ini {} not found!".format(TELEINFO_INI))
+    sys.exit(1)
+
+# Read conf.ini
+CONFIG = ConfigParser()
+CONFIG.read(TELEINFO_INI)
+
+TELEINFO_DATA = CONFIG['teleinfo']
+
+SERIALPORT = TELEINFO_DATA['serial_port']
+INFLUXDB = TELEINFO_DATA['influxdb_server']
 
 # création du logguer
-logging.basicConfig(filename='/var/log/teleinfo/releve.log', level=logging.INFO, format='%(asctime)s %(message)s')
+logging.basicConfig(filename=LOGFOLDER,
+                    level=logging.INFO, format='%(asctime)s %(message)s')
 logging.info("Teleinfo starting..")
 
 # connexion a la base de données InfluxDB
-client = InfluxDBClient('localhost', 8086)
-db = "teleinfo"
-connected = False
-while not connected:
+CLIENT = InfluxDBClient(INFLUXDB, 8086)
+DB = "teleinfo"
+CONNECTED = False
+while not CONNECTED:
     try:
-        logging.info("Database %s exists?" % db)
-        if not {'name': db} in client.get_list_database():
-            logging.info("Database %s creation.." % db)
-            client.create_database(db)
-            logging.info("Database %s created!" % db)
-        client.switch_database(db)
-        logging.info("Connected to %s!" % db)
+        logging.info("Database %s exists?", DB)
+        if {'name': DB} not in CLIENT.get_list_database():
+            logging.info("Database %s creation..", DB)
+            CLIENT.create_database(DB)
+            logging.info("Database %s created!", DB)
+        CLIENT.switch_database(DB)
+        logging.info("Connected to %s!", DB)
     except requests.exceptions.ConnectionError:
         logging.info('InfluxDB is not reachable. Waiting 5 seconds to retry.')
         time.sleep(5)
     else:
-        connected = True
+        CONNECTED = True
 
 
-def add_measures(measures, time_measure):
+def add_measures(measures):
+    """Add measures to array."""
     points = []
     for measure, value in measures.items():
         point = {
-                    "measurement": measure,
-                    "tags": {
-                        "host": "raspberry",
-                        "region": "linky"
-                    },
-                    "time": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "fields": {
-                        "value": value
-                    }
+            "measurement": measure,
+            "tags": {
+                "host": "raspberry",
+                "region": "linky"
+            },
+            "time": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "fields": {
+                "value": value
                 }
+            }
         points.append(point)
 
-    client.write_points(points)
+    CLIENT.write_points(points)
 
 
 def main():
-    with serial.Serial(port='/dev/ttyS0', baudrate=1200, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
+    """Main function to read teleinfo."""
+    with serial.Serial(port=SERIALPORT, baudrate=1200, parity=serial.PARITY_NONE,
+                       stopbits=serial.STOPBITS_ONE,
                        bytesize=serial.SEVENBITS, timeout=1) as ser:
 
-        logging.info("Teleinfo is reading on /dev/ttyS0..")
+        logging.info("Teleinfo is reading on %s..", SERIALPORT)
 
         trame = dict()
 
@@ -92,35 +120,33 @@ def main():
 
         while True:
             line_str = line.decode("utf-8")
-            ar = line_str.split(" ")
+            ar_split = line_str.split(" ")
             try:
-                key = ar[0]
-                if key in int_measure_keys :
-                    value = int(ar[1])
+                key = ar_split[0]
+                if key in INT_MEASURE_KEYS:
+                    value = int(ar_split[1])
                 else:
-                    value = ar[1]
+                    value = ar_split[1]
 
-                checksum = ar[2]
                 trame[key] = value
-                if b'\x03' in line:  # si caractère de fin dans la ligne, on insère la trame dans influx
+                if b'\x03' in line:  # si caractère de fin dans la ligne,
+                                     # on insère la trame dans influx
                     del trame['ADCO']  # adresse du compteur : confidentiel!
                     time_measure = time.time()
 
                     # insertion dans influxdb
-                    add_measures(trame, time_measure)
+                    add_measures(trame)
 
                     # ajout timestamp pour debugger
                     trame["timestamp"] = int(time_measure)
                     logging.debug(trame)
 
                     trame = dict()  # on repart sur une nouvelle trame
-            except Exception as e:
-                logging.error("Exception : %s" % e)
+            except Exception as error:
+                logging.error("Exception : %s", error)
             line = ser.readline()
 
 
 if __name__ == '__main__':
-    if connected:
+    if CONNECTED:
         main()
-
-
