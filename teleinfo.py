@@ -21,9 +21,13 @@
 #  'PTEC': 'HP..'            # Période tarifaire en cours
 # }
 
+import os
+import sys
 import logging
 import time
+import pathlib
 from datetime import datetime
+from configparser import ConfigParser
 import requests
 import serial
 from influxdb import InfluxDBClient
@@ -31,13 +35,33 @@ from influxdb import InfluxDBClient
 # clés téléinfo
 INT_MEASURE_KEYS = ['IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
 
+LOGFOLDER = "/var/log/teleinfo/releve.log"
+TELEINFO_INI = "./teleinfo.ini"
+
+# Check if log folder exist
+if not pathlib.Path(LOGFOLDER).exists():
+    os.mkdir(LOGFOLDER)
+
+if not pathlib.Path(TELEINFO_INI).exists():
+    print("Ini {} not found!".format(TELEINFO_INI))
+    sys.exit(1)
+
+# Read conf.ini
+CONFIG = ConfigParser()
+CONFIG.read(TELEINFO_INI)
+
+TELEINFO_DATA = CONFIG['teleinfo']
+
+SERIALPORT = TELEINFO_DATA['serial_port']
+INFLUXDB = TELEINFO_DATA['influxdb_server']
+
 # création du logguer
-logging.basicConfig(filename='/var/log/teleinfo/releve.log',
+logging.basicConfig(filename=LOGFOLDER,
                     level=logging.INFO, format='%(asctime)s %(message)s')
 logging.info("Teleinfo starting..")
 
 # connexion a la base de données InfluxDB
-CLIENT = InfluxDBClient('localhost', 8086)
+CLIENT = InfluxDBClient(INFLUXDB, 8086)
 DB = "teleinfo"
 CONNECTED = False
 while not CONNECTED:
@@ -78,11 +102,11 @@ def add_measures(measures):
 
 def main():
     """Main function to read teleinfo."""
-    with serial.Serial(port='/dev/ttyS0', baudrate=1200, parity=serial.PARITY_NONE,
+    with serial.Serial(port=SERIALPORT, baudrate=1200, parity=serial.PARITY_NONE,
                        stopbits=serial.STOPBITS_ONE,
                        bytesize=serial.SEVENBITS, timeout=1) as ser:
 
-        logging.info("Teleinfo is reading on /dev/ttyS0..")
+        logging.info("Teleinfo is reading on %s..", SERIALPORT)
 
         trame = dict()
 
