@@ -3,7 +3,7 @@
 # __author__ = "Sébastien Reuiller"
 # __licence__ = "Apache License 2.0"
 
-# Python 3, prerequis : pip install pySerial influxdb
+# Python 3, prérequis : pip install pySerial influxdb
 #
 # Exemple de trame:
 # {
@@ -30,7 +30,7 @@ from datetime import datetime
 from influxdb import InfluxDBClient
 
 # clés téléinfo
-int_measure_keys = ['BASE','IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
+int_measure_keys = ['BASE', 'IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
 no_checksum = ['MOTDETAT']
 
 # création du logguer
@@ -77,16 +77,12 @@ def add_measures(measures, time_measure):
     client.write_points(points)
 
 
-def verif_checksum(data,checksum):
+def verif_checksum(data, checksum):
     data_unicode = 0
     for caractere in data:
-            data_unicode += ord(caractere)
+        data_unicode += ord(caractere)
     sum_unicode = (data_unicode & 63) + 32
-    sum = chr(sum_unicode)
-    if (checksum == sum):
-        return True
-    else:
-        return False
+    return (checksum == chr(sum_unicode))
 
 
 def main():
@@ -108,29 +104,23 @@ def main():
         while True:
             line_str = line.decode("utf-8")
             logging.debug(line)
-            ar = line_str.split(" ") # separation sur espace /!\ attention le caractere de controle 0x32 est un espace aussi
-            # preparation données pour verification checksum
-            data =  ar[0] + " " + ar[1]
-            checksum = (line_str.replace('\x03\x02',''))[-3:-2]  # supprimer les retours charriot et saut de ligne puis selectionne le caractere de controle en partant de la fin
-            verif_checksum(data,checksum)
-
 
             try:
-                key = ar[0]
-                if key in int_measure_keys :  # typer les valeurs numériques en "integer"
-                    value = int(ar[1])
-                else:
-                    value = ar[1]   # typer les autres valeurs en "string"
-               
-                trame[key] = value   # creation du champ pour la trame en cours
-                
+                [key, val, *_] = line_str.split(" ")  # separation sur espace /!\ attention le caractere de controle 0x32 est un espace aussi
+
+                # supprimer les retours charriot et saut de ligne puis selectionne le caractere de controle en partant de la fin
+                checksum = (line_str.replace('\x03\x02', ''))[-3:-2]
+
+                if verif_checksum(f"{key} {val}", checksum):
+                    # creation du champ pour la trame en cours avec cast des valeurs de mesure en "integer"
+                    trame[key] = int(val) if key in int_measure_keys else val
+
                 if b'\x03' in line:  # si caractère de fin dans la ligne, on insère la trame dans influx
                     del trame['ADCO']  # adresse du compteur : confidentiel!
                     time_measure = time.time()
 
                     # insertion dans influxdb
-                    if (verif_checksum) : 
-                        add_measures(trame, time_measure)
+                    add_measures(trame, time_measure)
 
                     # ajout timestamp pour debugger
                     trame["timestamp"] = int(time_measure)
@@ -139,12 +129,10 @@ def main():
                     trame = dict()  # on repart sur une nouvelle trame
             except Exception as e:
                 logging.error("Exception : %s" % e, exc_info=True)
-                logging.error("%s %s" % (key,value))
+                logging.error("%s %s" % (key, val))
             line = ser.readline()
 
 
 if __name__ == '__main__':
     if connected:
         main()
-
-
