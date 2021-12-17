@@ -99,7 +99,7 @@ def add_measures(measures: dict, execution_datetime: datetime) -> None:
     client.write_points(points)
 
 
-def verif_checksum(data, checksum):
+def verif_checksum(data: str, checksum: str) -> bool:
     data_unicode = 0
     for caractere in data:
         data_unicode += ord(caractere)
@@ -107,7 +107,7 @@ def verif_checksum(data, checksum):
     return (checksum == chr(sum_unicode))
 
 
-def main():
+def main() -> None:
     with serial.Serial(linky_to_raspberry_serial_port_config.as_dict()) as ser:
 
         logging.info("Teleinfo is reading on /dev/ttyS0..")
