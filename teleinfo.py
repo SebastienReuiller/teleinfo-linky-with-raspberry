@@ -31,13 +31,15 @@ import requests
 import serial
 from influxdb import InfluxDBClient
 
+# création du logguer
+logging.basicConfig(filename='/var/log/teleinfo/releve.log', level=logging.INFO, format='%(asctime)s %(message)s')
+logging.info("Teleinfo starting..")
 
 # clés téléinfo
 INT_MESURE_KEYS = ['BASE', 'IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
 
-# création du logguer
-logging.basicConfig(filename='/var/log/teleinfo/releve.log', level=logging.INFO, format='%(asctime)s %(message)s')
-logging.info("Teleinfo starting..")
+# Nom de la base de données où seront stockées les mesures de télémétrie
+MEASUREMENTS_DB_NAME = "teleinfo"
 
 
 @dataclass
@@ -59,44 +61,49 @@ linky_to_raspberry_serial_port_config = SerialPortConfig(
 )
 
 
-# connexion a la base de données InfluxDB
-client = InfluxDBClient('localhost', 8086)
-DB_NAME = "teleinfo"
-connected = False
-while not connected:
-    try:
-        logging.info("Database %s exists?" % DB_NAME)
-        if not {'name': DB_NAME} in client.get_list_database():
-            logging.info("Database %s creation.." % DB_NAME)
-            client.create_database(DB_NAME)
-            logging.info("Database %s created!" % DB_NAME)
-        client.switch_database(DB_NAME)
-        logging.info("Connected to %s!" % DB_NAME)
-    except requests.exceptions.ConnectionError:
-        logging.info('InfluxDB is not reachable. Waiting 5 seconds to retry.')
-        time.sleep(5)
-    else:
-        connected = True
+class MeasurementDBClient:
+    def __init__(self, influx_db_client: InfluxDBClient) -> None:
+        self.influx_db_client = influx_db_client
+        self.is_connected = False
 
+    def connect(self) -> None:
+        self.is_connected = False
+        while not self.is_connected:
+            try:
+                logging.info("Database %s exists?" % MEASUREMENTS_DB_NAME)
+                if not {'name': MEASUREMENTS_DB_NAME} in self.influx_db_client.get_list_database():
+                    logging.info("Database %s creation.." % MEASUREMENTS_DB_NAME)
+                    self.influx_db_client.create_database(MEASUREMENTS_DB_NAME)
+                    logging.info("Database %s created!" % MEASUREMENTS_DB_NAME)
+                self.influx_db_client.switch_database(MEASUREMENTS_DB_NAME)
+                logging.info("Connected to %s!" % MEASUREMENTS_DB_NAME)
+            except requests.exceptions.ConnectionError:
+                logging.info('InfluxDB is not reachable. Waiting 5 seconds to retry.')
+                time.sleep(5)
+            else:
+                self.is_connected = True
 
-def add_measures(measures: dict, execution_datetime: datetime) -> None:
-    points = []
-    for measure, value in measures.items():
-        point = {
-            "measurement": measure,
-            "tags": {
-                # identification de la sonde et du compteur
-                "host": "raspberry",
-                "region": "linky"
-            },
-            "time": execution_datetime.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "fields": {
-                "value": value
+    def add_measures(self, measures: dict, execution_datetime: datetime) -> None:
+        if not self.is_connected:
+            self.connect()
+
+        points = []
+        for measure, value in measures.items():
+            point = {
+                "measurement": measure,
+                "tags": {
+                    # identification de la sonde et du compteur
+                    "host": "raspberry",
+                    "region": "linky"
+                },
+                "time": execution_datetime.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "fields": {
+                    "value": value
+                }
             }
-        }
-        points.append(point)
+            points.append(point)
 
-    client.write_points(points)
+        self.influx_db_client.write_points(points)
 
 
 def verif_checksum(data: str, checksum: str) -> bool:
@@ -107,7 +114,7 @@ def verif_checksum(data: str, checksum: str) -> bool:
     return (checksum == chr(sum_unicode))
 
 
-def main() -> None:
+def main(measurement_db_client: MeasurementDBClient) -> None:
     with serial.Serial(linky_to_raspberry_serial_port_config.as_dict()) as ser:
 
         logging.info("Teleinfo is reading on /dev/ttyS0..")
@@ -143,7 +150,7 @@ def main() -> None:
                     execution_datetime = datetime.utcnow()
 
                     # insertion dans influxdb
-                    add_measures(trame, execution_datetime)
+                    measurement_db_client.add_measures(trame, execution_datetime)
 
                     # ajout timestamp pour debugger
                     trame["timestamp"] = int(execution_datetime.timestamp())
@@ -157,5 +164,6 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    if connected:
-        main()
+    influx_db_client = InfluxDBClient(host='localhost', port=8086)
+    measurement_db_client = MeasurementDBClient(influx_db_client)
+    main(measurement_db_client)
