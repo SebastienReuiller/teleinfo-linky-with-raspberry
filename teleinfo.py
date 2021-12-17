@@ -25,6 +25,7 @@
 import logging
 import time
 from datetime import datetime
+from dataclasses import dataclass
 
 import requests
 import serial
@@ -37,6 +38,26 @@ INT_MESURE_KEYS = ['BASE', 'IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'H
 # création du logguer
 logging.basicConfig(filename='/var/log/teleinfo/releve.log', level=logging.INFO, format='%(asctime)s %(message)s')
 logging.info("Teleinfo starting..")
+
+
+@dataclass
+class SerialPortConfig:
+    port: str
+    baudrate: int
+    parity: str
+    stopbits: int
+    bytesize: int
+    timeout: int
+
+linky_to_raspberry_serial_port_config = SerialPortConfig(
+    port='/dev/ttyS0',
+    baudrate=1200,
+    parity=serial.PARITY_NONE,
+    stopbits=serial.STOPBITS_ONE,
+    bytesize=serial.SEVENBITS,
+    timeout=1
+)
+
 
 # connexion a la base de données InfluxDB
 client = InfluxDBClient('localhost', 8086)
@@ -87,8 +108,7 @@ def verif_checksum(data, checksum):
 
 
 def main():
-    with serial.Serial(port='/dev/ttyS0', baudrate=1200, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
-                       bytesize=serial.SEVENBITS, timeout=1) as ser:
+    with serial.Serial(linky_to_raspberry_serial_port_config.as_dict()) as ser:
 
         logging.info("Teleinfo is reading on /dev/ttyS0..")
 
