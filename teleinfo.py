@@ -3,7 +3,7 @@
 # __author__ = "Sébastien Reuiller"
 # __licence__ = "Apache License 2.0"
 
-# Python 3, prérequis : pip install pySerial influxdb
+# Python 3, prérequis : pip install -r requirements.txt
 #
 # Exemple de trame:
 # {

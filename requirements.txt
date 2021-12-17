@@ -1,0 +1,2 @@
+pySerial
+influxdb
