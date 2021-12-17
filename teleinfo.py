@@ -58,7 +58,7 @@ while not connected:
         connected = True
 
 
-def add_measures(measures, time_measure):
+def add_measures(measures: dict, execution_datetime: datetime) -> None:
     points = []
     for measure, value in measures.items():
         point = {
@@ -68,7 +68,7 @@ def add_measures(measures, time_measure):
                 "host": "raspberry",
                 "region": "linky"
             },
-            "time": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "time": execution_datetime.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "fields": {
                 "value": value
             }
@@ -120,13 +120,13 @@ def main():
 
                 if b'\x03' in line:  # si caractère de fin dans la ligne, on insère la trame dans influx
                     del trame['ADCO']  # adresse du compteur : confidentiel!
-                    time_measure = time.time()
+                    execution_datetime = datetime.utcnow()
 
                     # insertion dans influxdb
-                    add_measures(trame, time_measure)
+                    add_measures(trame, execution_datetime)
 
                     # ajout timestamp pour debugger
-                    trame["timestamp"] = int(time_measure)
+                    trame["timestamp"] = int(execution_datetime.timestamp())
                     logging.debug(trame)
 
                     trame = dict()  # on repart sur une nouvelle trame
