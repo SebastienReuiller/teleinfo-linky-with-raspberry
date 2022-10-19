@@ -1,0 +1,14 @@
+[Unit]
+Description=Teleinfo EDF
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+WorkingDirectory=/CHEMIN_VERS_LE_BON_DOSSIER/teleinfo
+ExecStart=/usr/bin/python3 ./teleinfo.py
+User=UN_UTILISATEUR_QUI_A_LES_DROITS
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target
