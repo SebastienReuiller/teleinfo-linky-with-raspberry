@@ -119,7 +119,8 @@ def main():
                     trame[key] = int(val) if key in INT_MESURE_KEYS else val
 
                 if b'\x03' in line:  # si caractère de fin dans la ligne, on insère la trame dans influx
-                    del trame['ADCO']  # adresse du compteur : confidentiel!
+                    if 'ADCO' in trame.keys():
+                        del trame['ADCO']  # adresse du compteur : confidentiel!
                     time_measure = time.time()
 
                     # insertion dans influxdb
