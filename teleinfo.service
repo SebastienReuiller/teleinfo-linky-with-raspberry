@@ -1,3 +1,6 @@
+# à mettre dans /etc/systemd/system/teleinfo.service
+# 2 points sont à adapter: /CHEMIN_VERS_LE_BON_DOSSIER et UN_UTILISATEUR_QUI_A_LES_DROITS
+# 
 [Unit]
 Description=Teleinfo EDF
 After=network.target
