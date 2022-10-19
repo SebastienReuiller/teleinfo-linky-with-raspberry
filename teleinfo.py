@@ -134,7 +134,10 @@ def main():
             except Exception as e:
                 logging.error("Exception : %s" % e, exc_info=True)
                 logging.error("%s %s" % (key, val))
-            line = ser.readline()
+            try:
+                line = ser.readline()
+            except serial.serialutil.SerialException:
+                logging.critical("Erreur de communication avec le port série")
 
 
 if __name__ == '__main__':
