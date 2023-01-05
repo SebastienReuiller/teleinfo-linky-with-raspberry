@@ -32,6 +32,7 @@ from influxdb import InfluxDBClient
 
 
 # clés téléinfo
+VALID_KEYS = ['ADC0', 'OPTARIF', 'ISOUSC', 'BASE', 'HCHC', 'HCHP', 'EJPHN', 'EJPHPM', 'BBRHCJB', 'BBRHPJB', 'BBRHCJW', 'BBRHPJW', 'BBRHCJR', 'BBRHPJR', 'PEJP', 'PTEC', 'DEMANI', 'IINST', 'ADPS', 'IMAX', 'PAPP', 'HHPHC', 'MOTDETAT', 'IINST1', 'IINST2', 'IINST3', 'IMAX1', 'IMAX2', 'IMAX3']
 INT_MESURE_KEYS = ['BASE', 'IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
 
 # création du logguer
@@ -61,6 +62,8 @@ while not connected:
 def add_measures(measures, time_measure):
     points = []
     for measure, value in measures.items():
+        if not measure in VALID_KEYS:
+            continue
         point = {
             "measurement": measure,
             "tags": {
