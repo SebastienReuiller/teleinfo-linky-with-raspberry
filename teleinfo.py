@@ -32,8 +32,56 @@ from influxdb import InfluxDBClient
 
 
 # clés téléinfo
-VALID_KEYS = ['ADC0', 'OPTARIF', 'ISOUSC', 'BASE', 'HCHC', 'HCHP', 'EJPHN', 'EJPHPM', 'BBRHCJB', 'BBRHPJB', 'BBRHCJW', 'BBRHPJW', 'BBRHCJR', 'BBRHPJR', 'PEJP', 'PTEC', 'DEMANI', 'IINST', 'ADPS', 'IMAX', 'PAPP', 'HHPHC', 'MOTDETAT', 'IINST1', 'IINST2', 'IINST3', 'IMAX1', 'IMAX2', 'IMAX3']
-INT_MESURE_KEYS = ['BASE', 'IMAX', 'HCHC', 'IINST', 'PAPP', 'ISOUSC', 'ADCO', 'HCHP']
+# http://www.erdf.fr/sites/default/files/ERDF-NOI-CPT_02E.pdf
+# Tableau 4 et 5 à page 32 et 33
+VALID_KEYS = [
+    'ADC0',
+    'ADPS',
+    'BASE',
+    'BBRHCJB',
+    'BBRHCJR',
+    'BBRHCJW',
+    'BBRHPJB',
+    'BBRHPJR',
+    'BBRHPJW',
+    'DEMANI',
+    'EJPHN',
+    'EJPHPM',
+    'HCHC',
+    'HCHP',
+    'HHPHC',
+    'IINST',
+    'IINST1',
+    'IINST2',
+    'IINST3',
+    'IMAX',
+    'IMAX1',
+    'IMAX2',
+    'IMAX3',
+    'ISOUSC',
+    'MOTDETAT',
+    'OPTARIF',
+    'PAPP',
+    'PEJP',
+    'PTEC',
+]
+
+INT_MESURE_KEYS = [
+    'ADCO',
+    'BASE',
+    'HCHC',
+    'HCHP',
+    'IINST',
+    'IINST1',
+    'IINST2',
+    'IINST3',
+    'IMAX',
+    'IMAX1',
+    'IMAX2',
+    'IMAX3',
+    'ISOUSC',
+    'PAPP',
+]
 
 # création du logguer
 logging.basicConfig(filename='/var/log/teleinfo/releve.log', level=logging.INFO, format='%(asctime)s %(message)s')
