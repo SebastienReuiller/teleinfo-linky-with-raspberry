@@ -63,6 +63,8 @@ VALID_KEYS = [
     'OPTARIF',
     'PAPP',
     'PEJP',
+    'PMAX',
+    'PPOT',
     'PTEC',
 ]
 
@@ -81,6 +83,7 @@ INT_MESURE_KEYS = [
     'IMAX3',
     'ISOUSC',
     'PAPP',
+    'PMAX',
 ]
 
 # création du logguer
